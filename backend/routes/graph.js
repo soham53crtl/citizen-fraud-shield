@@ -5,6 +5,19 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
+// GET /api/graph/overview — bootstrap data for the Fraud Network tab (bounded, most-recent-first)
+router.get("/overview", requireAuth, requireRole("police_officer", "cyber_analyst", "admin"), async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 60, 200);
+    const entities = await FraudEntity.find({}).sort({ lastSeenAt: -1 }).limit(limit);
+    const ids = entities.map((e) => e._id);
+    const connections = await Connection.find({
+      source: { $in: ids }, target: { $in: ids },
+    });
+    res.json({ entities, connections });
+  } catch (err) { next(err); }
+});
+
 // GET /api/graph/search?q=... — investigators only
 router.get("/search", requireAuth, requireRole("police_officer", "cyber_analyst", "admin"), async (req, res, next) => {
   try {
